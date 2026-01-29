@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Land Registry DApp</title>
+
+    <!-- ethers v5 -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: linear-gradient(120deg,#0f2027,#203a43,#2c5364);
+            color: white;
+            padding: 40px;
+        }
+        .box {
+            background: white;
+            color: black;
+            padding: 20px;
+            width: 460px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+        }
+        button {
+            background: #2c5364;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #203a43;
+        }
+        pre {
+            background: #eee;
+            padding: 10px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>🏡 Land Registry System</h1>
+
+<div class="box">
+    <button onclick="connectWallet()">🔗 Connect Wallet</button>
+    <p id="wallet"></p>
+</div>
+
+<div class="box">
+    <h3>📝 Register Land</h3>
+    <input id="r_landId" placeholder="Land ID">
+    <input id="r_ownerName" placeholder="Owner Name">
+    <input id="r_location" placeholder="Location">
+    <input id="r_price" placeholder="Price (ETH)">
+    <button onclick="registerLand()">Register</button>
+</div>
+
+<div class="box">
+    <h3>🔍 Search Land</h3>
+    <input id="s_landId" placeholder="Land ID">
+    <button onclick="searchLand()">Search</button>
+    <pre id="result"></pre>
+</div>
+
+<div class="box">
+    <h3>🔄 Transfer Ownership</h3>
+    <input id="t_landId" placeholder="Land ID">
+    <input id="t_newOwner" placeholder="New Owner Wallet Address">
+    <input id="t_newOwnerName" placeholder="New Owner Name">
+    <button onclick="transferLand()">Transfer</button>
+</div>
+
+<div class="box">
+    <h3>📋 Show All Land Records</h3>
+    <button onclick="showAllLands()">Show All Records</button>
+    <pre id="allResults"></pre>
+</div>
+
+<script>
+let provider, signer, contract;
+
+// ✅ UPDATE THIS WITH YOUR DEPLOYED ADDRESS
+const contractAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+
+// ✅ ABI FIXED (getAllLandIds ADDED)
+const abi = [
+    "function registerLand(uint256,string,string,uint256)",
+    "function getLand(uint256) view returns (uint256,string,string,uint256,address)",
+    "function transferLand(uint256,address,string)",
+    "function getAllLandIds() view returns (uint256[])"
+];
+
+async function connectWallet() {
+    if (!window.ethereum) {
+        alert("MetaMask not installed");
+        return;
+    }
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    signer = provider.getSigner();
+    contract = new ethers.Contract(contractAddress, abi, signer);
+    document.getElementById("wallet").innerText =
+        "Connected: " + await signer.getAddress();
+}
+
+async function registerLand() {
+    const tx = await contract.registerLand(
+        r_landId.value,
+        r_ownerName.value,
+        r_location.value,
+        ethers.utils.parseEther(r_price.value)
+    );
+    await tx.wait();
+    alert("✅ Land Registered");
+}
+
+async function searchLand() {
+    const land = await contract.getLand(s_landId.value);
+    result.innerText =
+`Land ID: ${land[0]}
+Owner Name: ${land[1]}
+Location: ${land[2]}
+Price: ${ethers.utils.formatEther(land[3])} ETH
+Owner Wallet: ${land[4]}`;
+}
+
+async function transferLand() {
+    const tx = await contract.transferLand(
+        t_landId.value,
+        t_newOwner.value,
+        t_newOwnerName.value
+    );
+    await tx.wait();
+    alert("✅ Ownership Transferred");
+}
+
+async function showAllLands() {
+    const ids = await contract.getAllLandIds();
+    let output = "";
+
+    if (ids.length === 0) {
+        output = "No lands registered.";
+    }
+
+    for (let i = 0; i < ids.length; i++) {
+        const land = await contract.getLand(ids[i]);
+        output +=
+`Land ID: ${land[0]}
+Owner Name: ${land[1]}
+Location: ${land[2]}
+Price: ${ethers.utils.formatEther(land[3])} ETH
+Owner Wallet: ${land[4]}
+-------------------------
+`;
+    }
+
+    document.getElementById("allResults").innerText = output;
+}
+</script>
+
+</body>
+</html>
+
+
